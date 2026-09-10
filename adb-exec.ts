@@ -14,7 +14,8 @@ import { appendDeviceNames, buildAdbArgs, parseDevices, type AdbDevice, type Adb
 
 export interface AdbImageBlock {
   type: "image";
-  source: { type: "base64"; mediaType: string; data: string };
+  data: string;
+  mimeType: string;
 }
 
 const LOGCAT_DEFAULT_SECONDS = 10;
@@ -168,7 +169,7 @@ async function captureScreenshot(
 
   return {
     text: `Screenshot captured (${kb} KB), saved to: ${local}`,
-    image: { type: "image", source: { type: "base64", mediaType: "image/png", data } },
+    image: { type: "image", data, mimeType: "image/png" },
   };
 }
 
