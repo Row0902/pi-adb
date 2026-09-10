@@ -1,6 +1,6 @@
 {
   "name": "pi-adb",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pi extension: control Android devices via ADB — 21 actions, interactive /adb picker, devices widget, screenshots as model-visible images",
   "keywords": [
     "pi-package",

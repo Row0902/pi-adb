@@ -7,11 +7,13 @@ import { type AdbAction, type AdbParams } from "./adb-runner";
 import { renderAdbCall, renderAdbResult } from "./adb-render";
 import {
   ADB_ACTIONS,
+  clearDevicesWidget,
   collectParams,
   refreshDevicesWidget,
   setDevicesWidget,
   toggleDevicesWidget,
 } from "./adb-interactive";
+import { isProjectEnabled, setProjectEnabled } from "./adb-state";
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
@@ -160,10 +162,29 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("adb", {
-    description: "Interactive ADB operations",
-    handler: async (_args, ctx) => {
+    description: "Interactive ADB operations (/adb enable | /adb disable to toggle per project)",
+    handler: async (args, ctx) => {
       if (ctx.mode !== "tui") {
         ctx.ui.notify("/adb requires TUI mode", "error");
+        return;
+      }
+
+      const sub = (args ?? "").trim().toLowerCase();
+      if (sub === "enable" || sub === "disable") {
+        const enabled = sub === "enable";
+        await setProjectEnabled(ctx.cwd, enabled);
+        applyEnabled(pi, enabled);
+        if (!enabled) clearDevicesWidget(ctx);
+        ctx.ui.notify(`ADB ${enabled ? "enabled" : "disabled"} for ${ctx.cwd}`, "info");
+        return;
+      }
+      if (sub) {
+        ctx.ui.notify(`Unknown subcommand "${sub}". Use /adb, /adb enable or /adb disable.`, "warning");
+        return;
+      }
+
+      if (!(await isProjectEnabled(ctx.cwd))) {
+        ctx.ui.notify("ADB is disabled for this project — run /adb enable first.", "warning");
         return;
       }
 
@@ -201,8 +222,21 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", async (_event, ctx) => {
-    await refreshDevicesWidget(pi, ctx).catch(() => {});
+    const enabled = await isProjectEnabled(ctx.cwd);
+    applyEnabled(pi, enabled);
+    if (enabled) {
+      await refreshDevicesWidget(pi, ctx).catch(() => {});
+    } else {
+      clearDevicesWidget(ctx);
+    }
   });
+}
+
+function applyEnabled(pi: ExtensionAPI, enabled: boolean): void {
+  const active = pi.getActiveTools();
+  const has = active.includes("adb");
+  if (enabled && !has) pi.setActiveTools([...active, "adb"]);
+  if (!enabled && has) pi.setActiveTools(active.filter((n) => n !== "adb"));
 }
 
 async function pickAction(ctx: ExtensionContext): Promise<string | null> {

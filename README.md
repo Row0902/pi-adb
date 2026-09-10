@@ -21,10 +21,23 @@ Expected result: the model calls the `adb` tool, and the TUI renders a formatted
 
 | Scope | Location | Notes |
 | :--- | :--- | :--- |
-| **Global (current)** | `~/.pi/agent/extensions/adb/` | Available in every project, no trust prompt. |
+| **Global install (current)** | `~/.pi/agent/extensions/adb/` | Registered in every project, but the `adb` tool is **inactive by default** — enable it per project with `/adb enable`. |
 | Project-local | `.pi/extensions/adb/` in a project | Loads only after `/trust` for that project. |
 | One-off test | `pi -e ./adb/index.ts` | No discovery; quick iteration. |
 | As a package | `pi install git:github.com/<user>/pi-adb` | Once published — see [Sharing](#sharing). |
+
+## Per-project enable/disable
+
+The extension registers one `adb` tool; in non-mobile projects the tool stays inactive (no system-prompt cost). State lives in `~/.pi/agent/adb-extension.json`, keyed by project directory:
+
+| Command | Effect |
+| :--- | :--- |
+| `/adb enable` | Activates the tool for the current project (persisted). |
+| `/adb disable` | Deactivates it and clears the devices widget (persisted). |
+| `/adb` | Picker; warns and exits if disabled in this project. |
+
+[!NOTE]
+Default is **off** everywhere. Projects where you ran `/adb enable` keep working across sessions.
 
 ## The `adb` tool — action matrix
 
@@ -150,6 +163,7 @@ No build step is needed — Pi loads extensions through jiti, so plain TypeScrip
 
 | Symptom | Fix |
 | :--- | :--- |
+| Tool silent in a project | Run `/adb enable` in that project. State: `~/.pi/agent/adb-extension.json`. |
 | Extension not loaded (global install) | Confirm `~/.pi/agent/extensions/adb/index.ts` exists and `/reload`. Run `pi list` if installed as a package. |
 | Extension not loaded (project-local install) | Trust the project (`/trust`) and `/reload`. Project-local `.pi/extensions` load only after trust. |
 | `adb: command not found` | Install Android SDK Platform Tools and add to `PATH`. |
