@@ -57,11 +57,24 @@ interface UiNodeInfo {
   clickable: boolean;
 }
 
+/**
+ * Parses the uiautomator XML with depth tracking so degenerate nodes
+ * (e.g. Compose text nodes reporting (0,0)) inherit the center of their
+ * nearest ancestor with real bounds. Neutral: lists whatever each app
+ * publishes (classic views, Jetpack Compose, WebView).
+ */
 function summarizeUiNodes(xml: string): string {
   const nodes: UiNodeInfo[] = [];
+  const ancestorCenters: Array<[number, number]> = [];
 
-  for (const match of xml.matchAll(/<node\b([^>]*)>/g)) {
+  for (const match of xml.matchAll(/<node\b([^>]*?)(\/?)>|<\/node>/g)) {
+    if (match[0].startsWith("</")) {
+      ancestorCenters.pop();
+      continue;
+    }
+
     const attrs = match[1] ?? "";
+    const selfClosing = match[2] === "/";
     const bounds = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(attrs);
     if (!bounds) continue;
 
@@ -71,23 +84,48 @@ function summarizeUiNodes(xml: string): string {
     const y2 = Number(bounds[4]);
     if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
 
-    nodes.push({
-      center: [Math.round((x1 + x2) / 2), Math.round((y1 + y2) / 2)],
+    const degenerate = x1 === x2 && y1 === y2;
+    const parent = ancestorCenters[ancestorCenters.length - 1];
+    const center: [number, number] =
+      degenerate && parent ? [parent[0], parent[1]] : [Math.round((x1 + x2) / 2), Math.round((y1 + y2) / 2)];
+
+    const info: UiNodeInfo = {
+      center,
       text: getAttr(attrs, "text"),
       desc: getAttr(attrs, "content-desc"),
       id: getAttr(attrs, "resource-id"),
       cls: getAttr(attrs, "class"),
       clickable: getAttr(attrs, "clickable") === "true",
-    });
+    };
+
+    if (info.clickable || info.text || info.desc || info.id) nodes.push(info);
+    if (!selfClosing) ancestorCenters.push(center);
   }
 
-  const interesting = nodes.filter((n) => n.clickable || n.text || n.desc || n.id);
+  return formatNodeList(nodes);
+}
 
-  if (interesting.length === 0) {
+/** Merges nodes sharing the same inherited center (clickable parent + labeled child). */
+function formatNodeList(nodes: UiNodeInfo[]): string {
+  const merged: UiNodeInfo[] = [];
+
+  for (const node of nodes) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.center[0] === node.center[0] && prev.center[1] === node.center[1]) {
+      prev.clickable = prev.clickable || node.clickable;
+      if (!prev.text && node.text) prev.text = node.text;
+      if (!prev.desc && node.desc) prev.desc = node.desc;
+      if (!prev.id && node.id) prev.id = node.id;
+      continue;
+    }
+    merged.push(node);
+  }
+
+  if (merged.length === 0) {
     return "UI hierarchy: no interactive or labeled nodes found.";
   }
 
-  const lines = interesting.map(
+  const lines = merged.map(
     (n) =>
       `- (${n.center[0]},${n.center[1]})` +
       (n.clickable ? " [clickable]" : "") +
@@ -102,7 +140,7 @@ function summarizeUiNodes(xml: string): string {
     maxBytes: DEFAULT_MAX_BYTES,
   });
 
-  let text = `UI hierarchy: ${interesting.length} of ${nodes.length} nodes\n${truncation.content}`;
+  let text = `UI hierarchy: ${merged.length} nodes\n${truncation.content}`;
   if (truncation.truncated) {
     text += `\n[Truncated: ${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}]`;
   }
