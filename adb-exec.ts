@@ -7,7 +7,7 @@ import {
   formatSize,
 } from "@earendil-works/pi-coding-agent";
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendDeviceNames, buildAdbArgs, parseDevices, type AdbDevice, type AdbParams } from "./adb-runner";
@@ -162,15 +162,28 @@ async function captureScreenshot(
 
   const data = await readFile(local, "base64");
   const kb = Math.round((data.length * 3) / 4 / 1024);
-  await pi.exec("adb", [...deviceArgs, "shell", "rm", remote], {
-    signal,
-    timeout: 10000,
-  });
+  await pi.exec(
+    "adb",
+    [...deviceArgs, "shell", "rm", "-f", "/data/local/tmp/pi-screencap-*.png"],
+    { signal, timeout: 10000 }
+  );
+  await pruneLocalScreenshots();
 
   return {
     text: `Screenshot captured (${kb} KB), saved to: ${local}`,
     image: { type: "image", data, mimeType: "image/png" },
   };
+}
+
+const LOCAL_SCREENSHOT_KEEP = 5;
+
+async function pruneLocalScreenshots(keep: number = LOCAL_SCREENSHOT_KEEP): Promise<void> {
+  const dir = tmpdir();
+  const files = (await readdir(dir))
+    .filter((f) => f.startsWith("pi-adb-screencap-") && f.endsWith(".png"))
+    .sort();
+  const stale = files.slice(0, Math.max(0, files.length - keep));
+  await Promise.all(stale.map((f) => rm(join(dir, f), { force: true }).catch(() => {})));
 }
 
 export async function runAdb(
