@@ -138,7 +138,7 @@ The directory is package-ready: `package.json` carries the `pi` manifest (`"pi":
 
 ```bash
 pi install git:github.com/<user>/pi-adb          # latest main
-pi install git:github.com/<user>/pi-adb@v1.0.0   # pinned tag
+pi install git:github.com/<user>/pi-adb@v0.1.0   # pinned tag
 pi install npm:pi-adb                            # if published to npm
 ```
 
