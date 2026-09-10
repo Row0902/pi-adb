@@ -32,8 +32,8 @@ The extension registers one `adb` tool; in non-mobile projects the tool stays in
 
 | Command | Effect |
 | :--- | :--- |
-| `/adb enable` | Activates the tool for the current project (persisted). |
-| `/adb disable` | Deactivates it and clears the devices widget (persisted). |
+| `/adb enable` | Activates the tool for the current project (persisted). Tab-autocompleted. |
+| `/adb disable` | Deactivates it and clears the devices widget (persisted). Tab-autocompleted. |
 | `/adb` | Picker; warns and exits if disabled in this project. |
 
 [!NOTE]

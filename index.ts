@@ -1,7 +1,7 @@
 import { StringEnum, Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
-import { Container, Text, SelectList } from "@earendil-works/pi-tui";
+import { Container, Text, type AutocompleteItem, SelectList } from "@earendil-works/pi-tui";
 import { runAdb, type AdbImageBlock } from "./adb-exec";
 import { type AdbAction, type AdbParams } from "./adb-runner";
 import { renderAdbCall, renderAdbResult } from "./adb-render";
@@ -163,6 +163,14 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand("adb", {
     description: "Interactive ADB operations (/adb enable | /adb disable to toggle per project)",
+    getArgumentCompletions: (prefix: string) => {
+      const items: AutocompleteItem[] = [
+        { value: "enable", label: "enable", description: "Activate adb for this project" },
+        { value: "disable", label: "disable", description: "Deactivate adb for this project" },
+      ];
+      const filtered = items.filter((i) => i.value.startsWith(prefix.toLowerCase()));
+      return filtered.length > 0 ? filtered : null;
+    },
     handler: async (args, ctx) => {
       if (ctx.mode !== "tui") {
         ctx.ui.notify("/adb requires TUI mode", "error");
