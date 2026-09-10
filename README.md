@@ -64,6 +64,11 @@ Default is **off** everywhere. Projects where you ran `/adb enable` keep working
 | `tcpip` | Restart adbd in Wi-Fi mode | — | `target` = port (default 5555) |
 | `usb` | Restart adbd in USB mode | — | — |
 | `bugreport` | Full bug report (slow) | — | `target` = local output path |
+| `ui` | Dump UI hierarchy with tap coordinates | — | — |
+| `tap` | Tap the screen | `x`, `y` (device pixels) | — |
+| `swipe` | Swipe/scroll | `x`, `y`, `x2`, `y2` | `duration` (ms) |
+| `type` | Type into the focused field | `text` | — |
+| `key` | Send a key event | `key` (BACK, HOME, ENTER, ...) | — |
 
 **Shared param:** `device` (serial) — see [Smart behavior](#smart-behavior); you rarely need it.
 
@@ -72,8 +77,16 @@ Port specs follow adb syntax: `tcp:8080`, `localabstract:name`, `dev:<device>`, 
 ## Examples
 
 ```jsonc
-// Ask Pi in natural language, or call the tool directly:
-{ "action": "devices" }
+// Interaction loop: see -> locate -> act -> verify
+{ "action": "screencap" }                                   // 1. see the screen
+{ "action": "ui" }                                           // 2. exact coordinates per node
+{ "action": "tap", "x": 540, "y": 2183 }                      // 3. act
+{ "action": "screencap" }                                    // 4. verify the result
+
+{ "action": "swipe", "x": 540, "y": 1800, "x2": 540, "y2": 600, "duration": 300 } // scroll
+{ "action": "type", "text": "hello world" }                   // into the focused field
+{ "action": "key", "key": "BACK" }
+```
 
 // Install a debug build, replacing any previous install:
 { "action": "install", "source": "app/build/outputs/apk/debug/app-debug.apk", "replace": true }

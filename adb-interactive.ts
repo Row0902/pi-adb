@@ -25,6 +25,11 @@ export const ADB_ACTIONS: SelectItem[] = [
   { value: "tcpip", label: "tcpip", description: "Switch adbd to Wi-Fi (TCP/IP) mode" },
   { value: "usb", label: "usb", description: "Switch adbd back to USB mode" },
   { value: "bugreport", label: "bugreport", description: "Capture a full bug report" },
+  { value: "tap", label: "tap", description: "Tap at device pixel coordinates" },
+  { value: "swipe", label: "swipe", description: "Swipe between two points" },
+  { value: "type", label: "type", description: "Type text into the focused field" },
+  { value: "key", label: "key", description: "Send a key event (BACK, HOME, ...)" },
+  { value: "ui", label: "ui", description: "Dump UI hierarchy with tap coordinates" },
 ];
 
 const DEVICELESS_ACTIONS = new Set(["devices", "pair", "connect", "disconnect"]);
@@ -145,6 +150,28 @@ export async function collectParams(
     case "bugreport":
       params.target = (await ask("Local output path (optional, e.g. bugreport.zip):")) || undefined;
       break;
+    case "tap": {
+      params.x = toInt(await ask("Tap X (device pixels, from 'ui' dump or screenshot):"));
+      params.y = toInt(await ask("Tap Y:"));
+      break;
+    }
+    case "swipe": {
+      params.x = toInt(await ask("Start X:"));
+      params.y = toInt(await ask("Start Y:"));
+      params.x2 = toInt(await ask("End X:"));
+      params.y2 = toInt(await ask("End Y:"));
+      const ms = await ask("Duration in ms (optional, e.g. 300):");
+      params.duration = toInt(ms);
+      break;
+    }
+    case "type":
+      params.text = (await ask("Text to type:")) || undefined;
+      break;
+    case "key":
+      params.key = (await ask("Key (e.g. BACK, HOME, ENTER, DPAD_UP):")) || undefined;
+      break;
+    case "ui":
+      break;
   }
 
   const missing = getMissingFields(action, params);
@@ -154,6 +181,12 @@ export async function collectParams(
   }
 
   return params;
+}
+
+function toInt(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function getMissingFields(action: string, params: AdbParams): string[] {
@@ -192,6 +225,21 @@ function getMissingFields(action: string, params: AdbParams): string[] {
     case "reverse":
       if (!params.target) missing.push("target (remote spec)");
       if (!params.source) missing.push("source (local spec)");
+      break;
+    case "tap":
+      if (params.x === undefined) missing.push("x (device pixels)");
+      if (params.y === undefined) missing.push("y (device pixels)");
+      break;
+    case "swipe":
+      if ([params.x, params.y, params.x2, params.y2].some((v) => v === undefined)) {
+        missing.push("x, y, x2, y2 (device pixels)");
+      }
+      break;
+    case "type":
+      if (!params.text) missing.push("text");
+      break;
+    case "key":
+      if (!params.key) missing.push("key");
       break;
   }
   return missing;

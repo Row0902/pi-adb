@@ -19,7 +19,12 @@ export type AdbAction =
   | "root"
   | "tcpip"
   | "usb"
-  | "bugreport";
+  | "bugreport"
+  | "tap"
+  | "swipe"
+  | "type"
+  | "key"
+  | "ui";
 
 export interface AdbParams {
   action: AdbAction;
@@ -33,6 +38,12 @@ export interface AdbParams {
   allowTest?: boolean;
   clear?: boolean;
   duration?: number;
+  x?: number;
+  y?: number;
+  x2?: number;
+  y2?: number;
+  text?: string;
+  key?: string;
 }
 
 export interface AdbDevice {
@@ -51,12 +62,14 @@ export interface AdbPortRule {
   remote: string;
 }
 
+const INPUT_ACTIONS = new Set(["tap", "swipe", "type", "key"]);
+
 export function buildAdbArgs(params: AdbParams): string[] {
   const { action, device, target, source, destination, command } = params;
 
   const adbArgs: string[] = [];
   if (device) adbArgs.push("-s", device);
-  adbArgs.push(action);
+  if (!INPUT_ACTIONS.has(action) && action !== "ui") adbArgs.push(action);
 
   switch (action) {
     case "devices":
@@ -134,6 +147,34 @@ export function buildAdbArgs(params: AdbParams): string[] {
       if (target) adbArgs.push(target);
       break;
     case "screencap":
+      break;
+    case "tap": {
+      if (params.x === undefined || params.y === undefined) {
+        throw new Error("tap requires x and y (device pixel coordinates)");
+      }
+      adbArgs.push("shell", "input", "tap", String(params.x), String(params.y));
+      break;
+    }
+    case "swipe": {
+      const coords = [params.x, params.y, params.x2, params.y2];
+      if (coords.some((v) => v === undefined)) {
+        throw new Error("swipe requires x, y, x2 and y2 (device pixel coordinates)");
+      }
+      adbArgs.push("shell", "input", "swipe", ...coords.map(String));
+      if (params.duration) adbArgs.push(String(params.duration));
+      break;
+    }
+    case "type": {
+      if (!params.text) throw new Error("type requires text");
+      adbArgs.push("shell", "input", "text", params.text.replace(/ /g, "%s"));
+      break;
+    }
+    case "key": {
+      if (!params.key) throw new Error("key requires key (e.g. BACK, HOME)");
+      adbArgs.push("shell", "input", "keyevent", `KEYCODE_${params.key}`);
+      break;
+    }
+    case "ui":
       break;
   }
 

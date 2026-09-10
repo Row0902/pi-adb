@@ -186,6 +186,8 @@ async function pruneLocalScreenshots(keep: number = LOCAL_SCREENSHOT_KEEP): Prom
   await Promise.all(stale.map((f) => rm(join(dir, f), { force: true }).catch(() => {})));
 }
 
+import { captureUiTree } from "./adb-ui";
+
 export async function runAdb(
   pi: ExtensionAPI,
   params: AdbParams,
@@ -204,6 +206,11 @@ export async function runAdb(
   if (action === "screencap") {
     const shot = await captureScreenshot(pi, params, signal);
     return { text: shot.text, args: buildAdbArgs(params), image: shot.image };
+  }
+
+  if (action === "ui") {
+    const tree = await captureUiTree(pi, params, signal);
+    return { text: tree.text, args: tree.args };
   }
 
   const adbArgs = buildAdbArgs(params);

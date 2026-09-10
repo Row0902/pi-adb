@@ -22,11 +22,12 @@ export default function (pi: ExtensionAPI) {
     description:
       "Android Debug Bridge tool. List devices (with commercial names), pair/connect/disconnect over Wi-Fi, " +
       "install/uninstall APKs, run shell commands, capture screenshots and logs, transfer files, " +
-      "manage port forwarding, reboot, root, and capture bug reports.",
+      "manage port forwarding, reboot, root, capture bug reports, and interact with the device " +
+      "(tap, swipe, type, key events, UI hierarchy dump).",
     promptSnippet:
       "Control Android devices via ADB: list, pair, connect, disconnect, install, sideload, " +
       "uninstall, shell, screencap, logcat, push, pull, forward, reverse, list-forward, " +
-      "list-reverse, reboot, root, tcpip, usb, bugreport",
+      "list-reverse, reboot, root, tcpip, usb, bugreport, tap, swipe, type, key, ui",
     promptGuidelines: [
       "Use adb with action='devices' to list connected Android devices with their commercial names before other operations.",
       "Use adb with action='pair' to pair a device over Wi-Fi (requires target=host:port and source=pairing_code).",
@@ -54,6 +55,12 @@ export default function (pi: ExtensionAPI) {
       "Use adb with action='tcpip' to restart adbd in Wi-Fi (TCP/IP) mode (optionally target=port, default 5555).",
       "Use adb with action='usb' to restart adbd in USB mode.",
       "Use adb with action='bugreport' to capture a full bug report (optionally target=local output path; takes several minutes).",
+      "Use adb with action='ui' to dump the UI hierarchy; returns interactive nodes with their center pixel coordinates (works with any app: classic views, Jetpack Compose, WebView — it lists whatever the app publishes).",
+      "Use adb with action='tap' to tap the device (requires x and y in device pixel coordinates, from action='ui' or the screencap image).",
+      "Use adb with action='swipe' to swipe the device (requires x, y, x2, y2; optionally duration=ms for scroll vs fling).",
+      "Use adb with action='type' to type text into the focused field (requires text; spaces are escaped automatically).",
+      "Use adb with action='key' to send a key event (requires key, e.g. BACK, HOME, ENTER, DPAD_UP).",
+      "Verification loop: screencap (see the screen) -> ui (get exact coordinates) -> tap/swipe/type/key (act) -> screencap again (verify the result).",
       "When no device serial is given, the tool auto-detects the single connected device; pass device only with multiple devices.",
     ],
     parameters: Type.Object({
@@ -79,6 +86,11 @@ export default function (pi: ExtensionAPI) {
         "tcpip",
         "usb",
         "bugreport",
+        "tap",
+        "swipe",
+        "type",
+        "key",
+        "ui",
       ] as const),
       device: Type.Optional(
         Type.String({
@@ -129,9 +141,33 @@ export default function (pi: ExtensionAPI) {
       duration: Type.Optional(
         Type.Integer({
           minimum: 1,
-          maximum: 60,
-          description: "Logcat stream duration in seconds (default 10, max 60).",
+          maximum: 5000,
+          description:
+            "Stream duration in seconds (action='logcat', default 10, max 60 enforced) " +
+            "or swipe duration in milliseconds (action='swipe', e.g. 300).",
         })
+      ),
+      x: Type.Optional(Type.Integer({ minimum: 0, description: "Start/tap X in device pixels (tap/swipe)." })),
+      y: Type.Optional(Type.Integer({ minimum: 0, description: "Start/tap Y in device pixels (tap/swipe)." })),
+      x2: Type.Optional(Type.Integer({ minimum: 0, description: "End X in device pixels (action='swipe')." })),
+      y2: Type.Optional(Type.Integer({ minimum: 0, description: "End Y in device pixels (action='swipe')." })),
+      text: Type.Optional(Type.String({ description: "Text to type into the focused field (action='type')." })),
+      key: Type.Optional(
+        StringEnum([
+          "BACK",
+          "HOME",
+          "ENTER",
+          "DEL",
+          "TAB",
+          "DPAD_UP",
+          "DPAD_DOWN",
+          "DPAD_LEFT",
+          "DPAD_RIGHT",
+          "VOLUME_UP",
+          "VOLUME_DOWN",
+          "POWER",
+          "APP_SWITCH",
+        ] as const)
       ),
     }),
 
