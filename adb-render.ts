@@ -8,7 +8,7 @@ type Theme = {
 
 interface AdbToolResult {
   content: unknown;
-  details?: { args?: string[] };
+  details?: { args?: string[]; devices?: AdbDevice[] };
   isError?: boolean;
 }
 
@@ -29,6 +29,7 @@ export function renderDevicesTable(devices: AdbDevice[], theme: Theme): string {
 
   for (const d of devices) {
     const info = [
+      d.name && `name:${d.name}`,
       d.model && `model:${d.model}`,
       d.product && `product:${d.product}`,
       d.transport && `transport:${d.transport}`,
@@ -102,7 +103,8 @@ export function renderAdbResult(
   const action = sIndex >= 0 ? args[sIndex + 2] : args[0];
 
   if (action === "devices") {
-    return new Text(renderDevicesTable(parseDevices(content), theme), 0, 0);
+    const devices = result.details?.devices ?? parseDevices(content);
+    return new Text(renderDevicesTable(devices, theme), 0, 0);
   }
 
   if (action === "list-forward" || action === "list-reverse") {

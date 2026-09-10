@@ -38,6 +38,7 @@ export interface AdbParams {
 export interface AdbDevice {
   serial: string;
   status: string;
+  name?: string;
   product?: string;
   model?: string;
   device?: string;
@@ -139,16 +140,17 @@ export function buildAdbArgs(params: AdbParams): string[] {
   return adbArgs;
 }
 
+const DEVICE_STATUSES = new Set(["device", "offline", "unauthorized", "recovery", "sideload", "bootloader"]);
+
 export function parseDevices(output: string): AdbDevice[] {
   const lines = output.split("\n").filter((l) => l.trim());
   const devices: AdbDevice[] = [];
 
   for (const line of lines) {
-    if (line.startsWith("List of")) continue;
     const parts = line.trim().split(/\s+/);
     const serial = parts[0];
-    if (!serial) continue;
-    const status = parts[1] ?? "unknown";
+    const status = parts[1] ?? "";
+    if (!serial || !DEVICE_STATUSES.has(status)) continue;
 
     const meta: Record<string, string> = {};
     for (let i = 2; i < parts.length; i++) {
@@ -159,6 +161,7 @@ export function parseDevices(output: string): AdbDevice[] {
     devices.push({
       serial,
       status,
+      name: meta["name"],
       product: meta["product"],
       model: meta["model"],
       device: meta["device"],
@@ -167,6 +170,14 @@ export function parseDevices(output: string): AdbDevice[] {
   }
 
   return devices;
+}
+
+export function appendDeviceNames(output: string, devices: AdbDevice[]): string {
+  const named = devices.filter((d) => d.name);
+  if (named.length === 0) return output;
+
+  const lines = named.map((d) => `- ${d.model ?? d.serial}: ${d.name}`);
+  return output.trimEnd() + "\n\nDevice names:\n" + lines.join("\n");
 }
 
 export function parsePortRules(output: string): AdbPortRule[] {

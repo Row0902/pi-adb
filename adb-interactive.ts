@@ -217,7 +217,7 @@ function widgetLines(
     const lines = devices.map((d) => {
       const color =
         d.status === "device" ? "success" : d.status === "offline" ? "error" : "warning";
-      const label = d.model ? `${d.serial} (${d.model})` : d.serial;
+      const label = d.name ?? (d.model ? `${d.serial} (${d.model})` : d.serial);
       return `${theme.fg(color, "●")} ${theme.fg("muted", label)}`;
     });
     return { render: () => lines, invalidate: () => {} };
@@ -253,6 +253,6 @@ export async function refreshDevicesWidget(
   pi: ExtensionAPI,
   ctx: ExtensionContext
 ): Promise<void> {
-  const { text } = await runAdb(pi, { action: "devices" });
-  setDevicesWidget(ctx, parseDevices(text));
+  const { text, devices } = await runAdb(pi, { action: "devices" });
+  setDevicesWidget(ctx, devices ?? parseDevices(text));
 }

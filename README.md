@@ -30,7 +30,7 @@ Expected result: the model calls the `adb` tool, and the TUI renders a formatted
 
 | Action | What it does | Required params | Optional params |
 | :--- | :--- | :--- | :--- |
-| `devices` | List connected devices (long format) | — | — |
+| `devices` | List connected devices (long format + commercial names) | — | — |
 | `pair` | Pair over Wi-Fi (Android 11+ flow) | `target` = `host:port`, `source` = pairing code | — |
 | `connect` | Connect to a paired Wi-Fi device | `target` = `host:port` | — |
 | `disconnect` | Disconnect Wi-Fi device(s) | — | `target` = `host:port` (omit = all) |
@@ -97,6 +97,7 @@ The widget refreshes on `session_start` and every time a `devices` action runs. 
 
 | Behavior | Detail |
 | :--- | :--- |
+| **Commercial device names** | `devices` results are enriched via `getprop ro.product.marketname` per device (cached per serial in the session). Shows `Redmi Note 10 5G` instead of forcing you to decode `M2103K19G`. |
 | **Serial auto-detection** | With exactly one device online, `-s <serial>` is injected automatically. Skipped for host-level actions (`devices`, `pair`, `connect`, `disconnect`). With 0 or 2+ devices, adb's own error surfaces. |
 | **Screenshot as image** | `screencap` → `pull` → base64 PNG block attached to the tool result, so the model can inspect the screen. Local PNG is kept in the temp dir. |
 | **logcat streaming** | Spawned process streams output; progress reports every second via partial results; terminates after `duration` seconds (default 10, max 60). Esc aborts cleanly (AbortSignal). |

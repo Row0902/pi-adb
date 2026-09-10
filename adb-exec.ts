@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildAdbArgs, parseDevices, type AdbParams } from "./adb-runner";
+import { appendDeviceNames, buildAdbArgs, parseDevices, type AdbDevice, type AdbParams } from "./adb-runner";
 
 export interface AdbImageBlock {
   type: "image";
@@ -21,11 +21,41 @@ const LOGCAT_DEFAULT_SECONDS = 10;
 const LOGCAT_MAX_SECONDS = 60;
 const HOST_ONLY_ACTIONS = new Set(["devices", "pair", "connect", "disconnect"]);
 const SLOW_ACTIONS = new Set(["sideload", "bugreport"]);
+const DEVICE_NAME_CACHE = new Map<string, string>();
 
 type AdbUpdate = { content: Array<{ type: "text"; text: string }> };
 type OnUpdate = (update: AdbUpdate) => void;
 
-export type AdbRunResult = { text: string; args: string[]; image?: AdbImageBlock };
+export type AdbRunResult = { text: string; args: string[]; image?: AdbImageBlock; devices?: AdbDevice[] };
+
+async function fetchDeviceName(
+  pi: ExtensionAPI,
+  serial: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const cached = DEVICE_NAME_CACHE.get(serial);
+  if (cached) return cached;
+
+  const result = await pi.exec(
+    "adb",
+    ["-s", serial, "shell", "getprop", "ro.product.marketname"],
+    { signal, timeout: 10000 }
+  );
+  const name = (result.stdout || "").trim();
+  if (name) DEVICE_NAME_CACHE.set(serial, name);
+  return name;
+}
+
+async function enrichDeviceNames(
+  pi: ExtensionAPI,
+  devices: AdbDevice[],
+  signal?: AbortSignal
+): Promise<void> {
+  for (const d of devices) {
+    if (d.status !== "device") continue;
+    d.name = await fetchDeviceName(pi, d.serial, signal);
+  }
+}
 
 async function resolveDeviceSerial(
   pi: ExtensionAPI,
@@ -194,6 +224,12 @@ export async function runAdb(
 
   if (result.code !== 0) {
     throw new Error(`adb exited with code ${result.code}\n${text}`);
+  }
+
+  if (action === "devices") {
+    const devices = parseDevices(output);
+    await enrichDeviceNames(pi, devices, signal);
+    return { text: appendDeviceNames(text, devices), args: adbArgs, devices };
   }
 
   return { text, args: adbArgs };

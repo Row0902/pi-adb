@@ -3,7 +3,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import { Container, Text, SelectList } from "@earendil-works/pi-tui";
 import { runAdb, type AdbImageBlock } from "./adb-exec";
-import { parseDevices, type AdbAction, type AdbParams } from "./adb-runner";
+import { type AdbAction, type AdbParams } from "./adb-runner";
 import { renderAdbCall, renderAdbResult } from "./adb-render";
 import {
   ADB_ACTIONS,
@@ -18,7 +18,7 @@ export default function (pi: ExtensionAPI) {
     name: "adb",
     label: "ADB",
     description:
-      "Android Debug Bridge tool. List devices, pair/connect/disconnect over Wi-Fi, " +
+      "Android Debug Bridge tool. List devices (with commercial names), pair/connect/disconnect over Wi-Fi, " +
       "install/uninstall APKs, run shell commands, capture screenshots and logs, transfer files, " +
       "manage port forwarding, reboot, root, and capture bug reports.",
     promptSnippet:
@@ -26,7 +26,7 @@ export default function (pi: ExtensionAPI) {
       "uninstall, shell, screencap, logcat, push, pull, forward, reverse, list-forward, " +
       "list-reverse, reboot, root, tcpip, usb, bugreport",
     promptGuidelines: [
-      "Use adb with action='devices' to list connected Android devices before other operations.",
+      "Use adb with action='devices' to list connected Android devices with their commercial names before other operations.",
       "Use adb with action='pair' to pair a device over Wi-Fi (requires target=host:port and source=pairing_code).",
       "Use adb with action='connect' to connect to a paired device over Wi-Fi (requires target=host:port).",
       "Use adb with action='disconnect' to disconnect Wi-Fi device(s) (optionally target=host:port; omit for all).",
@@ -134,10 +134,10 @@ export default function (pi: ExtensionAPI) {
     }),
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      const { text, args, image } = await runAdb(pi, params, signal, onUpdate);
+      const { text, args, image, devices } = await runAdb(pi, params, signal, onUpdate);
 
-      if (params.action === "devices") {
-        setDevicesWidget(ctx, parseDevices(text));
+      if (devices) {
+        setDevicesWidget(ctx, devices);
       }
 
       const content: Array<AdbImageBlock | { type: "text"; text: string }> = image
@@ -146,7 +146,7 @@ export default function (pi: ExtensionAPI) {
 
       return {
         content,
-        details: { args, exitCode: 0 },
+        details: { args, exitCode: 0, devices },
       };
     },
 
@@ -176,10 +176,9 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.setStatus("adb", ctx.ui.theme.fg("accent", `● adb ${action}`));
 
       try {
-        const { text } = await runAdb(pi, params);
+        const { devices } = await runAdb(pi, params);
 
-        if (action === "devices") {
-          const devices = parseDevices(text);
+        if (devices) {
           setDevicesWidget(ctx, devices);
           ctx.ui.notify(`${devices.length} device(s) connected`, "info");
         } else {
