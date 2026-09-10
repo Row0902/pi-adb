@@ -1,0 +1,22 @@
+{
+  "name": "pi-adb",
+  "version": "1.0.0",
+  "description": "Pi extension: control Android devices via ADB — 21 actions, interactive /adb picker, devices widget, screenshots as model-visible images",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "adb",
+    "android",
+    "kairos"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Row0902/pi-adb.git"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

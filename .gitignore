@@ -1,0 +1,11 @@
+# Dependencies (none today; guard for the future)
+node_modules/
+package-lock.json
+
+# Runtime temp files
+*.log
+*.bak
+
+# OS cruft
+.DS_Store
+Thumbs.db

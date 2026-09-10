@@ -1,0 +1,184 @@
+export type AdbAction =
+  | "devices"
+  | "pair"
+  | "connect"
+  | "disconnect"
+  | "install"
+  | "sideload"
+  | "uninstall"
+  | "shell"
+  | "screencap"
+  | "logcat"
+  | "push"
+  | "pull"
+  | "forward"
+  | "reverse"
+  | "list-forward"
+  | "list-reverse"
+  | "reboot"
+  | "root"
+  | "tcpip"
+  | "usb"
+  | "bugreport";
+
+export interface AdbParams {
+  action: AdbAction;
+  device?: string;
+  target?: string;
+  source?: string;
+  destination?: string;
+  command?: string;
+  replace?: boolean;
+  keepData?: boolean;
+  allowTest?: boolean;
+  clear?: boolean;
+  duration?: number;
+}
+
+export interface AdbDevice {
+  serial: string;
+  status: string;
+  product?: string;
+  model?: string;
+  device?: string;
+  transport?: string;
+}
+
+export interface AdbPortRule {
+  serial: string;
+  local: string;
+  remote: string;
+}
+
+export function buildAdbArgs(params: AdbParams): string[] {
+  const { action, device, target, source, destination, command } = params;
+
+  const adbArgs: string[] = [];
+  if (device) adbArgs.push("-s", device);
+  adbArgs.push(action);
+
+  switch (action) {
+    case "devices":
+      adbArgs.push("-l");
+      break;
+    case "pair":
+      if (!target) throw new Error("pair requires target (host:port)");
+      adbArgs.push(target);
+      if (source) adbArgs.push(source);
+      break;
+    case "connect":
+      if (!target) throw new Error("connect requires target (host:port)");
+      adbArgs.push(target);
+      break;
+    case "disconnect":
+      if (target) adbArgs.push(target);
+      break;
+    case "install":
+      if (!source) throw new Error("install requires source (APK path)");
+      if (params.replace) adbArgs.push("-r");
+      if (params.allowTest) adbArgs.push("-t");
+      adbArgs.push(source);
+      break;
+    case "sideload":
+      if (!source) throw new Error("sideload requires source (OTA zip path)");
+      adbArgs.push(source);
+      break;
+    case "uninstall":
+      if (!target) throw new Error("uninstall requires target (package name)");
+      if (params.keepData) adbArgs.push("-k");
+      adbArgs.push(target);
+      break;
+    case "shell":
+      if (!command) throw new Error("shell requires command");
+      adbArgs.push(command);
+      break;
+    case "logcat":
+      if (target) adbArgs.push(target);
+      break;
+    case "push":
+      if (!source) throw new Error("push requires source (local path)");
+      if (!target) throw new Error("push requires target (remote path)");
+      adbArgs.push(source, target);
+      break;
+    case "pull":
+      if (!target) throw new Error("pull requires target (remote path)");
+      adbArgs.push(target);
+      if (destination) adbArgs.push(destination);
+      break;
+    case "forward":
+      if (!target) throw new Error("forward requires target (local spec, e.g. tcp:8080)");
+      if (!source) throw new Error("forward requires source (remote spec, e.g. tcp:8080)");
+      adbArgs.push(target, source);
+      break;
+    case "reverse":
+      if (!target) throw new Error("reverse requires target (remote spec, e.g. tcp:8080)");
+      if (!source) throw new Error("reverse requires source (local spec, e.g. tcp:8080)");
+      adbArgs.push(target, source);
+      break;
+    case "list-forward":
+    case "list-reverse":
+      adbArgs.push("--list");
+      break;
+    case "reboot":
+      if (target) adbArgs.push(target);
+      break;
+    case "root":
+      break;
+    case "tcpip":
+      if (target) adbArgs.push(target);
+      break;
+    case "usb":
+      break;
+    case "bugreport":
+      if (target) adbArgs.push(target);
+      break;
+    case "screencap":
+      break;
+  }
+
+  return adbArgs;
+}
+
+export function parseDevices(output: string): AdbDevice[] {
+  const lines = output.split("\n").filter((l) => l.trim());
+  const devices: AdbDevice[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("List of")) continue;
+    const parts = line.trim().split(/\s+/);
+    const serial = parts[0];
+    if (!serial) continue;
+    const status = parts[1] ?? "unknown";
+
+    const meta: Record<string, string> = {};
+    for (let i = 2; i < parts.length; i++) {
+      const kv = parts[i]?.split(":");
+      if (kv && kv.length === 2) meta[kv[0]!] = kv[1]!;
+    }
+
+    devices.push({
+      serial,
+      status,
+      product: meta["product"],
+      model: meta["model"],
+      device: meta["device"],
+      transport: meta["transport"],
+    });
+  }
+
+  return devices;
+}
+
+export function parsePortRules(output: string): AdbPortRule[] {
+  const lines = output.split("\n").filter((l) => l.trim());
+  const rules: AdbPortRule[] = [];
+
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    const [serial, local, remote] = parts;
+    if (!serial || !local || !remote) continue;
+    rules.push({ serial, local, remote });
+  }
+
+  return rules;
+}
